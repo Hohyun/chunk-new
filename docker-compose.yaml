@@ -1,0 +1,27 @@
+version: "3.7"
+
+services:
+  php-53:
+    container_name: php-53
+    image: devilbox/php-fpm:5.3-prod
+    restart: always
+    ports:
+      - 9000:9000
+    volumes:
+      - ./htdocs:/var/www/default/htdocs
+    environment:
+      - NEW_UID=1000
+      - NEW_GID=1000
+
+  apache:
+    container_name: apache
+    image: devilbox/apache-2.2
+    volumes:
+      - ./htdocs:/var/www/default/htdocs
+    environment:
+      - NEW_UID=1000
+      - NEW_GID=1000
+      - TIMEZONE=Asia/Seoul
+      - MAIN_VHOST_BACKEND=conf:phpfpm:tcp:php-53:9000
+    ports:
+      - 80:80

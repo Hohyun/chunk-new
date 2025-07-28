@@ -1,0 +1,126 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    io.kompose.service: php-53
+  name: php-53
+  namespace: chunk
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: php-53
+  template:
+    metadata:
+      labels:
+        io.kompose.service: php-53
+    spec:
+      containers:
+        - env:
+            - name: NEW_GID
+              value: "1000"
+            - name: NEW_UID
+              value: "1000"
+          image: devilbox/php-fpm:5.3-prod
+          name: php-53
+          ports:
+            - containerPort: 9000
+          volumeMounts:
+            - mountPath: /var/www/default/htdocs
+              name: chunkeng-volume
+      restartPolicy: Always
+      volumes:
+        - name: chunkeng-volume
+          hostPath:
+            path: /home/hohyun/Projects/php53/htdocs
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    io.kompose.service: php-53
+  name: php-53
+  namespace: chunk
+spec:
+  ports:
+    - protocol: TCP
+      port: 9000
+      targetPort: 9000
+  selector:
+    io.kompose.service: php-53
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    io.kompose.service: nginx-php53
+  name: nginx-php53
+  namespace: chunk
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: nginx-php53
+  template:
+    metadata:
+      labels:
+        io.kompose.service: nginx-php53
+    spec:
+      containers:
+        - env:
+            - name: MAIN_VHOST_BACKEND
+              value: conf:phpfpm:tcp:php-53:9000
+            - name: NEW_GID
+              value: "1000"
+            - name: NEW_UID
+              value: "1000"
+            - name: TIMEZONE
+              value: Asia/Seoul
+          image: devilbox/nginx-mainline
+          name: nginx-php53
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - mountPath: /var/www/default/htdocs
+              name: chunkeng-volume
+      restartPolicy: Always
+      volumes:
+        - name: chunkeng-volume
+          hostPath:
+            path: /home/hohyun/Projects/php53/htdocs
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    io.kompose.service: nginx-php53
+  name: nginx-php53
+  namespace: chunk
+spec:
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 80
+  selector:
+    io.kompose.service: nginx-php53
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: chunk-ingress
+  namespace: chunk
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: www.chunktest.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: apache-php53
+                port:
+                  number: 8080
